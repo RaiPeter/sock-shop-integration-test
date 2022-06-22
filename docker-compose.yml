@@ -1,0 +1,81 @@
+version: '2'
+
+services:
+  integration-tester:
+    build: .
+    depends_on:
+      - frontend
+    links:
+      - front-end
+      - user
+      - user-db
+      - carts
+      - carts-db
+  front-end:
+    image: weaveworksdemos/front-end:0.3.12
+    depends_on:
+      - carts
+      - user
+    hostname: front-end
+    restart: always
+    cap_drop:
+      - all
+    read_only: true
+    expose:
+      - '8079'
+  user:
+    image: weaveworksdemos/user:0.4.4
+    hostname: user
+    depends_on:
+      - user-db
+    restart: always
+    cap_drop:
+      - all
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    environment:
+      - MONGO_HOST=user-db:27017
+  user-db:
+    image: weaveworksdemos/user-db:0.4.0
+    hostname: user-db
+    restart: always
+    cap_drop:
+      - all
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
+    expose:
+      - "27017"
+  carts:
+    image: weaveworksdemos/carts:0.4.8
+    hostname: carts
+    restart: always
+    cap_drop:
+      - all
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
+    environment:
+      - JAVA_OPTS=-Xms64m -Xmx128m -XX:+UseG1GC -Djava.security.egd=file:/dev/urandom -Dspring.zipkin.enabled=false
+    depends_on:
+      - carts-db
+  carts-db:
+    image: mongo:3.4
+    hostname: carts-db
+    restart: always
+    cap_drop:
+      - all
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
