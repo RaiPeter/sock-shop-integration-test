@@ -5,7 +5,12 @@ services:
     build: .
     depends_on:
       - user-db
+      - cart-db
   user-db:
+    image: mongo:latest
+    expose:
+      - "27017"
+  cart-db:
     image: mongo:latest
     expose:
       - "27017"
