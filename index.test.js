@@ -78,7 +78,7 @@ const removeCartDB = async () => {
     console.log("Cart Database Dropped!");
 }
 
-describe("Cart Functionality Test", () => {
+describe("Cart and User tests", () => {
     beforeAll(async () => {
         await connectUserDB();
         await connectCartDB();
