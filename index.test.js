@@ -3,8 +3,6 @@ const { MongoClient } = require('mongodb');
 
 jest.setTimeout(60000);
 
-jest.mock('axios')
-
 let userConnection;
 let userDB;
 let cartConnection;
@@ -12,33 +10,16 @@ let cartDB;
 const user = {
     host: 'user-db',
     port: 27017,
-    databaseName: 'test-db',
-    collectionName: 'test-customers',
+    databaseName: 'users',
+    collectionName: 'customers',
     url: `mongodb://user-db:27017/`,
-    userInfo: {
-        username: "smarter",
-    },
 }
 const cart = {
-    host: 'cart-db',
+    host: 'carts-db',
     port: 27017,
-    databaseName: 'test-db',
-    collectionName: 'test-cart',
-    url: `mongodb://cart-db:27017/`,
-    cartInfo: {
-        _id: "cart123",
-        customerID: "userID",
-        items: [
-            {
-                _id: "random123",
-                name: "Holy Socks",
-                price: "11$",
-                category: "socks",
-                quantity: 1,
-                description: "This is a special edition socks in the world"
-            }
-        ]
-    },
+    databaseName: 'data',
+    collectionName: 'cart',
+    url: `mongodb://carts-db:27017/`
 }
 
 //connects with user databse 
@@ -60,22 +41,11 @@ const connectCartDB = async () => {
 
 // removes the collection making the user db empty
 const resetUserDB = async () => {
-    await userDB.collection(user.collectionName).deleteMany({});
+    await userDB.collection("customers").deleteOne({ username: "myname" });
 }
 // removes the collection making the cart db empty
 const resetCartDB = async () => {
-    await cartDB.collection(cart.collectionName).deleteMany({});
-}
-
-// drops the user database
-const removeUserDB = async () => {
-    await userDB.dropDatabase()
-    console.log("User Database Dropped!");
-}
-// drops the cart database
-const removeCartDB = async () => {
-    await cartDB.dropDatabase()
-    console.log("Cart Database Dropped!");
+    await cartDB.collection("cart").deleteMany({});
 }
 
 describe("Cart and User tests", () => {
@@ -84,212 +54,119 @@ describe("Cart and User tests", () => {
         await connectCartDB();
     })
     beforeEach(async () => {
-        await resetCartDB();
         await resetUserDB();
+        await resetCartDB();
     });
 
-    it("GET /cart returns all the items in the cart", async () => {
-        const mockID = "mockUserID"
-        let mockUser = {
-            _id: mockID,
-            username: "smarter"
-        }
-        let mockCart = {
-            _id: "cart123",
-            customerID: mockID,
-            items: [
-                {
-                    _id: "random123",
-                    name: "Holy Socks",
-                    price: "11$",
-                    category: "socks",
-                    quantity: 1,
-                    description: "This is a special edition socks in the world"
-                }
-            ]
-        }
-        axios.get.mockResolvedValue({
-            status: 200,
-            body: mockCart.items
-        })
-        const response = await axios.get('http://front-end:8079/cart')
+    it("GET /customers returns all the registered users", async () => {
+        const response = await axios.get("http://front-end:8079/customers")
 
-        const users = userDB.collection(user.collectionName);
-
-        // inserting a mock user in user DB,
-        const insertedUser = await users.insertOne(mockUser);
-        console.log("User inserted");
-
-        const carts = cartDB.collection(cart.collectionName);
-        // inserting a mock cart along with user's _id as customerID to make sure user exists
-        const insertedCart = await carts.insertOne(mockCart);
-
-        // checking if the user already present in cart DB,
-        // if it does, it returns all the items in that user's cart
-        const foundCart = await carts.findOne({ customerID: mockID });
-
-        expect(foundCart.items).toEqual(mockCart.items);
         expect(response.status).toBe(200);
-        expect(response.body).toEqual(mockCart.items);
+        expect(response.data).toHaveProperty("_embedded.customer");
     })
 
-    it("DEL /cart deletes the cart for the particular user", async () => {
-        const mockID = "mockUserID"
-        let mockUser = {
-            _id: mockID,
-            username: "smarter"
-        }
-        let mockCart = {
-            _id: "cart123",
-            customerID: mockID,
-            items: [
-                {
-                    _id: "random123",
-                    name: "Holy Socks",
-                    price: "11$",
-                    category: "socks",
-                    quantity: 1,
-                    description: "This is a special edition socks in the world"
-                }
-            ]
-        }
-        axios.delete.mockResolvedValue({
-            status: 200
-        })
-        const response = await axios.delete('http://front-end:8079/cart')
-
-        const users = userDB.collection(user.collectionName);
-
-        // inserting a mock user in user DB,
-        const insertedUser = await users.insertOne(mockUser);
-        console.log("User inserted");
-
-        const carts = cartDB.collection(cart.collectionName);
-        // inserting a mock cart along with user's _id as customerID to make sure user exists
-        const insertedCart = await carts.insertOne(mockCart);
-
-        await carts.deleteOne({ _id: mockCart._id });
-
-        const foundCart = await carts.findOne(insertedCart._id);
-
-        expect(foundCart).toBe(null);
-        expect(response.status).toBe(200);
-    })
-
-    it("DEL cart/:id deletes an item from the cart", async () => {
-        let mockUser = {
-            _id: "mockUserID",
-            username: "smarter"
-        }
-        let mockCart = {
-            _id: "cart123",
-            customerID: "mockUserID",
-            items: [
-                {
-                    _id: "random123",
-                    name: "Holy Socks",
-                    price: "11$",
-                    category: "socks",
-                    quantity: 1,
-                    description: "This is a special edition socks in the world"
-                }
-            ]
-        }
-        axios.delete.mockResolvedValue({
-            status: 200
-        })
-        const response = await axios.delete('http://front-end:8079/cart')
-
-        const users = userDB.collection(user.collectionName);
-
-        // inserting a mock user in user DB,
-        const insertedUser = await users.insertOne(mockUser);
-        console.log("User inserted");
-
-        const carts = cartDB.collection(cart.collectionName);
-        // inserting a mock cart along with user's _id as customerID to make sure user exists
-        const insertedCart = await carts.insertOne({
-            _id: "cart123",
-            customerID: insertedUser._id,
-            items: [
-                {
-                    _id: "random123",
-                    name: "Holy Socks",
-                    price: "11$",
-                    category: "socks",
-                    quantity: 1,
-                    description: "This is a special edition socks in the world"
-                }
-            ]
+    it("GET /login logs in a registered user and returns with a cookie", async () => {
+        const response = await axios.get("http://front-end:8079/login", {
+            auth: {
+                // already in the db user
+                username: 'user',
+                password: 'password'
+            },
         });
 
-        await carts.deleteOne({ "items._id": mockCart.items._id });
-
-        const foundCart = await carts.findOne({ 'items._id': mockCart.items._id })
-
-        expect(foundCart).toBe(null);
-        expect(response.status).toBe(200)
+        expect(response.status).toBe(200);
+        expect(response.data).toBe("Cookie is set");
+        expect(response.headers['set-cookie']).toBeTruthy();
     })
 
-    it("POST /cart adds items to cart", async () => {
-        let mockUser = {
-            _id: "mockUserID",
-            username: "smarter"
+    it("POST /register registers a new user and checks in the database", async () => {
+        let user = {
+            username: "myname",
+            password: "mypass",
+            firstName: "myfname",
+            lastName: "mylname",
+            email: "my@mail.com"
         }
-        let mockCart = {
-            _id: "cart123",
-            customerID: "mockUserID",
-            items: [
-                {
-                    _id: "random123",
-                    name: "Holy Socks",
-                    price: "11$",
-                    category: "socks",
-                    quantity: 1,
-                    description: "This is a special edition socks in the world"
-                }
-            ]
-        }
-        axios.post.mockResolvedValue({
-            status: 200
-        })
-        const response = await axios.post('http://front-end:8079/cart', {
-            id: "random123",
-            price: "11$"
-        })
+        const response = await axios.post("http://front-end:8079/register", user);
 
-        const users = userDB.collection(user.collectionName);
-        const instertedUser = users.insertOne(mockUser);
-
-        const carts = cartDB.collection(cart.collectionName);
-        const insertedCart = await carts.insertOne({
-            _id: "cart123",
-            customerID: "mockUserID",
-            items: []
-        })
-        const updatedCart = await carts.update({
-            _id: "cart123"
-        }, {
-            $push: {
-                "items": {
-                    _id: "random123",
-                    name: "Holy Socks",
-                    price: "11$",
-                    category: "socks",
-                    quantity: 1,
-                    description: "This is a special edition socks in the world"
-                }
-            }
-        })
-        const foundCart = await carts.findOne({ _id: "cart123" });
-
-        expect(foundCart).toEqual(mockCart);
         expect(response.status).toBe(200);
+        expect(response.data).toHaveProperty("id");
+
+        // checking if the user is inserted in the DB
+        const data = userDB.collection("customers").findOne({ username: "myname" });
+
+        expect(data).toBeTruthy();
+    })
+
+    it('POST /cart adds items to the cart for the logged user', async () => {
+        const loginRes = await axios.get("http://front-end:8079/login", {
+            auth: {
+                username: 'user',
+                password: 'password'
+            },
+        });
+        console.log(loginRes.headers['set-cookie']);
+        // to get the cookie logged_in from the response
+        const cookie = loginRes.headers['set-cookie'];
+        const loggedCookie = cookie.toString().split('; ')
+        const cookiees = loggedCookie[0].split('=')
+        expect(loginRes.status).toBe(200);
+
+        // sends product id and the cookie to ass to cart
+        const cartRes = await axios.post('http://front-end:8079/cart',
+            {
+                // item id from catalogue db
+                id: "03fef6ac-1896-4ce8-bd69-b798f85c6e0b"
+            },
+            {
+                headers: {
+                    cookies: cookiees[1]
+                }
+            },
+        )
+        expect(cartRes.status).toBe(201);
+
+        // checking in the db if it got stored
+        const data = await cartDB.collection("cart").count();
+        console.log(data)
+        expect(data).toBe(1);
+    })
+
+    it("DELETE /cart removes an item from the cart for logged user", async () => {
+        const loginRes = await axios.get("http://front-end:8079/login", {
+            auth: {
+                username: 'user',
+                password: 'password'
+            },
+        });
+        console.log(loginRes.headers['set-cookie']);
+        // to get the cookie logged_in from the response
+        const cookie = loginRes.headers['set-cookie'];
+        const loggedCookie = cookie.toString().split('; ')
+        const cookiees = loggedCookie[0].split('=')
+        expect(loginRes.status).toBe(200);
+
+        // sends product id and the cookie to ass to cart
+        const cartRes = await axios.delete('http://front-end:8079/cart',
+            {
+                headers: {
+                    cookies: cookiees[1]
+                },
+                params: {
+                    // item id from catalogue db
+                    id: "03fef6ac-1896-4ce8-bd69-b798f85c6e0b"
+                }
+            },
+        )
+        expect(cartRes.status).toBe(202);
+
+        // checking in the db if it got removed
+        const data = await cartDB.collection("cart").count();
+        console.log(data)
+        expect(data).toBe(0);
     })
 
     afterAll(async () => {
-        await removeCartDB();
-        await removeUserDB();
         await cartConnection.close();
         await userConnection.close();
     });
